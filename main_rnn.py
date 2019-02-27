@@ -85,17 +85,19 @@ print(" --- Data shapes: ", np.shape(xtrain), np.shape(ytrain), np.shape(xval), 
 # ------ hyper-parameter set-up ------
 
 # loss type
-para_loss_type = "mse" # mse, lk, lk_inv, pseudo_lk 
+para_loss_type = "mse" 
+# mse,
+# lk_inv: could need higher learning rate 
 
 # attention
 para_attention_plain = ""
 
 # bayesian
-para_bool_mc_dropout = False
+para_bool_mc_dropout = True
 para_mc_n_samples = 50 if para_bool_mc_dropout == True else 0 
 
 # convergence
-para_n_epoch = 130
+para_n_epoch = 150
 
 para_lr_plain = lr_dic[dataset_str][para_loss_type] # dataset, loss type
 para_batch_size_plain = batch_size_dic[dataset_str]
@@ -108,6 +110,7 @@ para_decay_step = 1000000
 para_bool_regular_lstm = True
 para_bool_regular_attention = False
 para_bool_regular_dropout_output = False
+para_bool_regular_dropout_input = True
 
 # if residual layers are used, keep all dimensions the same 
 para_bool_residual = False
@@ -179,7 +182,8 @@ def train_nn(num_dense, l2_dense, dropout_keep_prob, log_file, test_pickle, epoc
                             para_bool_regular_lstm,
                             para_bool_regular_dropout_output,
                             para_decay,
-                            para_loss_type)
+                            para_loss_type,
+                            para_bool_regular_dropout_input)
             
             para_batch_size = para_batch_size_plain
         
@@ -286,9 +290,11 @@ def log_train(text_env):
     
     text_env.write("maximum norm constraint : %f \n"%(maxnorm_dic[dataset_str]))
     text_env.write("number of epoch : %d \n"%(para_n_epoch))
+    
     text_env.write("regularization on LSTM weights : %s \n"%(para_bool_regular_lstm))
     text_env.write("regularization on attention : %s \n"%(para_bool_regular_attention))
     text_env.write("dropout before the outpout layer : %s \n"%(para_bool_regular_dropout_output))
+    text_env.write("dropout on the input : %s \n"%(para_bool_regular_dropout_input))
     
     text_env.write("epoch num in validation : %s \n"%(para_val_epoch_num))
     text_env.write("epoch ensemble num in testing : %s \n"%(para_test_epoch_num))
@@ -349,10 +355,10 @@ if __name__ == '__main__':
     hpara_err = []
     
     # set of dropout keep probability  
-    keep_prob_set = [0.8] if para_bool_mc_dropout == True else [0.8]
+    keep_prob_set = [0.8, 0.5] if para_bool_mc_dropout == True else [1.0, 0.8, 0.5]
     
     # for tmp_lr in [0.001, 0.002, 0.005]
-    for tmp_num_dense in [0]:
+    for tmp_num_dense in [1]:
         for tmp_keep_prob in keep_prob_set:
             for tmp_l2 in [0.00001, 0.0001, 0.001, 0.01]:
                 

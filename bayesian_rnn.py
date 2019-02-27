@@ -55,7 +55,8 @@ class bayesian_rnn():
                     bool_regular_lstm, 
                     bool_regular_dropout_output, 
                     lr_decay,
-                    loss_type):
+                    loss_type,
+                    bool_regular_dropout_input):
         
         # ---- fix the random seed to reproduce the results
         np.random.seed(1)
@@ -90,14 +91,17 @@ class bayesian_rnn():
         
         h = self.x
         
+        
         # dropout on input?
-        h = tf.nn.dropout(h, self.keep_prob)
+        if bool_regular_dropout_input == True:
+            h = tf.nn.dropout(h, self.keep_prob)
         
         # dropout
-        h, _ = plain_lstm(h, 
-                          n_lstm_dim_layers, 
-                          'lstm', 
-                          self.keep_prob)
+        # [B T D]
+        h, _ = plain_lstm(x = h, 
+                          dim_layers = n_lstm_dim_layers, 
+                          scope = 'lstm', 
+                          dropout_keep_prob = self.keep_prob)
         
         # attention
         if att_type == 'temp':
@@ -105,18 +109,21 @@ class bayesian_rnn():
             print('\n --- Plain RNN using temporal attention:\n')
             
             # dropout ?
-            h, self.att, regu_att = attention_temp_logit(h, 
-                                                         n_lstm_dim_layers[-1], 
-                                                         'att', 
-                                                         self.N_STEPS)
+            h, self.att, regu_att = attention_temp_logit(h = h, 
+                                                         h_dim = n_lstm_dim_layers[-1], 
+                                                         scope = 'att', 
+                                                         step = self.N_STEPS)
             
             # dropout
-            h, regu_multi_dense, out_dim = multi_dense(h, 
-                                                       2*n_lstm_dim_layers[-1], 
-                                                       num_dense, 
-                                                       'multi_dense', 
-                                                       self.keep_prob, 
-                                                       max_norm)
+            # watch out for gradient vanishing in multi-dense
+            # ? max_norm constraint
+            h, regu_multi_dense, out_dim = multi_dense(x = h, 
+                                                       x_dim = 2*n_lstm_dim_layers[-1], 
+                                                       num_layers = num_dense, 
+                                                       scope = 'multi_dense', 
+                                                       dropout_keep_prob = self.keep_prob, 
+                                                       max_norm_regul = 0.0,
+                                                       activation_type = "relu")
             
         else:
             
@@ -124,16 +131,23 @@ class bayesian_rnn():
             
             # obtain the last hidden state
             tmp_hiddens = tf.transpose(h, [1,0,2])
+            # [B D]
             h = tmp_hiddens[-1]
             
-            # dropout
-            h, regu_multi_dense, out_dim = multi_dense(h, 
-                                                       n_lstm_dim_layers[-1], 
-                                                       num_dense, 
-                                                       'multi_dense', 
-                                                       self.keep_prob, 
-                                                       max_norm)
             
+            # dropout
+            # watch out for gradient vanishing in multi-dense
+            # ? max_norm constraint
+            h, regu_multi_dense, out_dim = multi_dense(x = h, 
+                                                       x_dim = n_lstm_dim_layers[-1], 
+                                                       num_layers = num_dense, 
+                                                       scope = 'multi_dense', 
+                                                       dropout_keep_prob = self.keep_prob, 
+                                                       max_norm_regul = 0.0, 
+                                                       activation_type = "relu")
+                                                       # leaky_relu
+        
+        # ?
         self.regularization = l2_dense*regu_multi_dense
         
         
@@ -146,40 +160,26 @@ class bayesian_rnn():
             
         # ?
         self.mean, self.regu_mean = dense(x = h, 
-                                     x_dim = out_dim, 
-                                     out_dim = 1, 
-                                     scope = "output_mean", 
-                                     dropout_keep_prob = 1.0,
-                                     max_norm_regul = 0.0,
-                                     bool_no_activation = True)
+                                          x_dim = out_dim, 
+                                          out_dim = 1, 
+                                          scope = "output_mean", 
+                                          dropout_keep_prob = 1.0,
+                                          max_norm_regul = 0.0,
+                                          activation_type = "")
         
         # ?
         tmp_var, self.regu_var = dense(x = h,
-                                  x_dim = out_dim, 
-                                  out_dim = 1, 
-                                  scope = "output_var", 
-                                  dropout_keep_prob = 1.0,
-                                  max_norm_regul = 0.0,
-                                  bool_no_activation = True)
-        
-        '''        
-        h, regu_dense = dense(x = h, 
-                              x_dim = out_dim, 
-                              out_dim = 2, 
-                              scope = "output_dense", 
-                              dropout_keep_prob = 1.0, 
-                              max_norm_regul = max_norm,
-                              bool_no_activation = True)
-        '''
-        
+                                       x_dim = out_dim, 
+                                       out_dim = 1, 
+                                       scope = "output_var", 
+                                       dropout_keep_prob = 1.0,
+                                       max_norm_regul = 0.0,
+                                       activation_type = "")
+                
         # [B 1] [B 1]
-        #self.mean, tmp_var = tf.split(h, [1, 1], 1)   
-        
         self.var = tf.square(tmp_var)
         self.inv_var = tf.square(tmp_var)
                 
-        #self.regularization += l2_dense*regu_dense
-        
         
         # ---- log likelihood 
         
@@ -188,26 +188,13 @@ class bayesian_rnn():
         # py: predicted y
         # inv: inversed variance
         
-        # [B 1]
-        #tmp_lk = tf.exp(-0.5*tf.square(self.y - self.mean)/(self.var + 1e-5))/(2.0*np.pi*(self.var + 1e-5))**0.5
-        #self.neg_llk = tf.reduce_sum(-1.0*tf.log(tmp_lk + 1e-5))
-        
-        #self.py_nllk = 0.5*tf.square(self.y - self.mean)/(self.var + 1e-5) + 0.5*tf.log(self.var + 1e-5)
-        #self.nllk = tf.reduce_sum(self.py_nllk)
-        
         # numerical stable
         
         # [B 1]
-        #tmp_lk_inv = tf.exp(-0.5*tf.square(self.y - self.mean)*self.inv_var)/(2.0*np.pi)**0.5*(self.inv_var**0.5)
-        #self.neg_llk_inv = tf.reduce_sum(-1.0*tf.log(tmp_lk_inv + 1e-5))
-        
         self.py_nllk_inv = 0.5*tf.square(self.y - self.mean)*self.inv_var - 0.5*tf.log(self.inv_var + 1e-5)
         self.nllk_inv = tf.reduce_sum(self.py_nllk_inv)
         
         # [B 1]
-        #tmp_lk_pseudo = tf.exp(-0.5*tf.square(self.y - self.mean))/(2.0*np.pi)**0.5
-        #self.pseudo_neg_llk = tf.reduce_sum(-1.0*tf.log(tf.reduce_sum(pseudo_lk, 1)+1e-5))
-        
         self.py_nllk_pseudo = 0.5*tf.square(self.y - self.mean)
         self.nllk_pseudo = tf.reduce_sum(self.py_nllk_pseudo)
             
@@ -258,30 +245,6 @@ class bayesian_rnn():
             print('--- [ERROR] loss type')
             return
             
-        '''    
-
-        elif self.loss_type == 'lk':
-            
-            self.loss = self.neg_llk + self.regularization
-            
-            self.neg_llk = self.nllk
-            
-            self.py_neg_llk = self.py_nllk_inv
-            self.py_mean = self.mean
-            self.py_unc = np.sqrt(self.var)
-            
-        
-        elif self.loss_type == 'lk_pseudo':
-            
-            self.loss = self.neg_llk_pseudo + self.regularization
-            
-            self.neg_llk = self.nllk_pseudo
-            
-            self.py_neg_llk = self.py_nllk_pseudo
-            self.py_mean = self.mean
-            self.py_unc = 0.0
-        '''
-        
         # optimizer 
         self.optimizer = tf.train.AdamOptimizer(learning_rate = self.lr).minimize(self.loss)  
         
@@ -378,7 +341,6 @@ class bayesian_rnn():
             
             # ? test
             sample_subset = np.transpose(np.asarray(samples_py_mean), [1, 0, 2])[0][:10]
-            
             print("??? test ????", sample_subset, y_test[0])
             
             py_mean = np.mean(np.transpose(np.asarray(samples_py_mean), [1, 0, 2]), axis = 1)
@@ -392,20 +354,15 @@ class bayesian_rnn():
             
         else:
             
-            
-            py_mean, rmse, mae, mape, nllk = self.sess.run([tf.get_collection('py_mean')[0],
-                                                            tf.get_collection('rmse')[0], 
+            rmse, mae, mape, nllk = self.sess.run([tf.get_collection('rmse')[0], 
                                                    tf.get_collection('mae')[0],
                                                    tf.get_collection('mape')[0],
                                                    tf.get_collection('neg_llk')[0]],
                                                    feed_dict = {'x:0':x_test, 'y:0':y_test, 'keep_prob:0':keep_prob})
             
-            mape = self.metric_mape(y = y_test, py = py_mean)
-        
         
         # return [rmse, mae, mape, nllk, py_mean, py_unc, py_nllk] 
         if bool_instance == True:
-            
             
             if bool_mc_dropout == True:
                 
@@ -415,7 +372,6 @@ class bayesian_rnn():
                 py_mean = np.mean(np.transpose(np.asarray(samples_py_mean), [1, 0, 2]), axis = 1)
                 
                 # py_nllk
-                # py_nllk = self.mc_neg_llk(np.transpose(np.asarray(samples_py_nllk), [1, 0, 2]), n_samples)
                 
                 # py_unc
                 if self.loss_type == 'mse':
@@ -437,7 +393,7 @@ class bayesian_rnn():
                     
                     py_mean, py_nllk = self.sess.run([tf.get_collection('py_mean')[0],
                                                       tf.get_collection('py_neg_llk')[0]], 
-                                            feed_dict = {'x:0':x_test, 'y:0':y_test, 'keep_prob:0':keep_prob})
+                                                      feed_dict = {'x:0':x_test, 'y:0':y_test, 'keep_prob:0':keep_prob})
                     py_unc = None
                 
                 elif 'lk' in self.loss_type:

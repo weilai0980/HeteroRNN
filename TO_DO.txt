@@ -2,4 +2,13 @@
 
 --------------- TO DO LIST -------------------
 
-tf.set_random_seed(1)
+
+TRAINING:
+  tf.set_random_seed(1)
+
+
+METRICS:
+
+  relation between entropy and variance uncertainty 
+
+

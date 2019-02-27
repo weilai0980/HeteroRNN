@@ -7,7 +7,6 @@ hidden_dim_dic = {}
 
 hidden_dim_dic.update({"plant":[200]})
 hidden_dim_dic.update({"nasdaq":[820]})
-
 # lk: ? mse: 170
 hidden_dim_dic.update({"sml":[170]})
 hidden_dim_dic.update({"pm25":[140]})
@@ -37,6 +36,7 @@ maxnorm_dic.update({"sml":5.0})
 maxnorm_dic.update({"nasdaq":5.0})
 maxnorm_dic.update({"pm25":5.0})
 
+'''
 # attention type
 attention_dic = {}
 attention_dic.update({"plain":"temp"}) # "temp"
@@ -47,3 +47,4 @@ loss_dic.update({"plant":"lk"})
 loss_dic.update({"nasdaq":"lk"})
 loss_dic.update({"sml":"mse"})
 loss_dic.update({"pm25":"mse"})
+'''
