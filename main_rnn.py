@@ -73,7 +73,7 @@ yval = np.load(files_list[3], encoding = 'latin1')
     
 # align the dimension    
 ytrain = np.expand_dims(ytrain, 1) 
-yval  = np.expand_dims(yval,  1)
+yval = np.expand_dims(yval, 1)
 
 # fixed
 para_input_dim = np.shape(xtrain)[-1]
@@ -86,14 +86,15 @@ print(" --- Data shapes: ", np.shape(xtrain), np.shape(ytrain), np.shape(xval), 
 
 # loss type
 para_loss_type = "mse" 
-# mse,
-# lk_inv: could need higher learning rate 
+# NOTE:
+# mse: converge faster 
+# lk_inv: could need higher learning rate, due to small magnitude of the loss function
 
 # attention
 para_attention_plain = ""
 
 # bayesian
-para_bool_mc_dropout = True
+para_bool_mc_dropout = True # Monte Carlo dropout
 para_mc_n_samples = 50 if para_bool_mc_dropout == True else 0 
 
 # convergence
@@ -125,7 +126,13 @@ para_test_epoch_num = 1
 
 # ------ utility functions ------
 
-def train_nn(num_dense, l2_dense, dropout_keep_prob, log_file, test_pickle, epoch_set, bool_retrain):
+def train_nn(num_dense, 
+             l2_dense, 
+             dropout_keep_prob, 
+             log_file, 
+             test_pickle,
+             epoch_set, 
+             bool_retrain):
     
     # log: epoch errors
     with open(log_file, "a") as text_file:
@@ -296,8 +303,8 @@ def log_train(text_env):
     text_env.write("dropout before the outpout layer : %s \n"%(para_bool_regular_dropout_output))
     text_env.write("dropout on the input : %s \n"%(para_bool_regular_dropout_input))
     
-    text_env.write("epoch num in validation : %s \n"%(para_val_epoch_num))
-    text_env.write("epoch ensemble num in testing : %s \n"%(para_test_epoch_num))
+    text_env.write("epoch num. in validation : %s \n"%(para_val_epoch_num))
+    text_env.write("epoch ensemble num. in testing : %s \n"%(para_test_epoch_num))
     
     text_env.write("Bayeisan MC dropout: %s, %s\n\n"%(para_bool_mc_dropout, para_mc_n_samples))
     
@@ -350,15 +357,17 @@ if __name__ == '__main__':
     
     # ------ training and validation
     
-    # grid search process
+    # grid search for hyper-parameters
+    
+    # state record w.r.t. a set-up of hyper-parameters
     hpara = []
     hpara_err = []
     
     # set of dropout keep probability  
-    keep_prob_set = [0.8, 0.5] if para_bool_mc_dropout == True else [1.0, 0.8, 0.5]
+    keep_prob_set = [0.8, 0.5, 0.3] if para_bool_mc_dropout == True else [1.0, 0.8, 0.5]
     
     # for tmp_lr in [0.001, 0.002, 0.005]
-    for tmp_num_dense in [1]:
+    for tmp_num_dense in [0, 1]:
         for tmp_keep_prob in keep_prob_set:
             for tmp_l2 in [0.00001, 0.0001, 0.001, 0.01]:
                 
@@ -475,7 +484,7 @@ if __name__ == '__main__':
     
     if error_epoch_log[0][0] not in epoch_sample:
         
-        rmse, mae, mape, nllk, py_mean, py_nllk, py_unc = test_nn([error_epoch_log[0][0]], 
+        rmse, mae, mape, nllk, py_mean, py_nllk, py_unc = test_nn([error_epoch_log[0][0]],
                                                                   xval, 
                                                                   yval, 
                                                                   path_model, 

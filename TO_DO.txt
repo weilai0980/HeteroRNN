@@ -7,6 +7,24 @@ TRAINING:
   tf.set_random_seed(1)
 
 
+Validation:
+  validation metric: rmse, mae, mape 
+
+
+MC-dropout
+  
+  A Theoretically Grounded Application of Dropout in Recurrent Neural Networks
+
+  https://gist.github.com/yohokuno/8d6661d7e0c85ba4d03d5d7a2b15a2b6
+  
+  https://github.com/yaringal/DropoutUncertaintyExps/blob/master/net/net.py
+
+
+BAYESIAN:
+  https://alexgkendall.com/computer_vision/bayesian_deep_learning_for_safe_ai/
+  https://blogs.rstudio.com/tensorflow/posts/2018-11-12-uncertainty_estimates_dropout/
+
+
 METRICS:
 
   relation between entropy and variance uncertainty 

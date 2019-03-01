@@ -413,6 +413,7 @@ class bayesian_rnn():
         return rmse, mae, mape, nllk, py_mean, py_nllk, py_unc
             
     
+    # logsumexp trick 
     def mc_neg_llk(self, py_nllk, n_samples):
         
         # numerical stable 
