@@ -81,8 +81,13 @@ para_win_size = np.shape(xtrain)[1]
 
 print(" --- Data shapes: ", np.shape(xtrain), np.shape(ytrain), np.shape(xval), np.shape(yval))
 
-
 # ------ hyper-parameter set-up ------
+
+# set of values for grid search
+keep_prob_set = [0.8, 0.5, 0.3] if para_bool_mc_dropout == True else [1.0, 0.8, 0.5] # dropout keep probability
+num_dense_set = [0, 1]
+l2_set = [0.00001, 0.0001, 0.001, 0.01]
+lr_set = []
 
 # loss type
 para_loss_type = "mse" 
@@ -357,19 +362,15 @@ if __name__ == '__main__':
     
     # ------ training and validation
     
-    # grid search for hyper-parameters
-    
     # state record w.r.t. a set-up of hyper-parameters
     hpara = []
     hpara_err = []
     
-    # set of dropout keep probability  
-    keep_prob_set = [0.8, 0.5, 0.3] if para_bool_mc_dropout == True else [1.0, 0.8, 0.5]
-    
+    # grid search for hyper-parameters
     # for tmp_lr in [0.001, 0.002, 0.005]
-    for tmp_num_dense in [0, 1]:
+    for tmp_num_dense in num_dense_set:
         for tmp_keep_prob in keep_prob_set:
-            for tmp_l2 in [0.00001, 0.0001, 0.001, 0.01]:
+            for tmp_l2 in l2_set:
                 
                 # pickle: predictions            
                 pred_pickle = path_result + "pred_" \
@@ -377,14 +378,14 @@ if __name__ == '__main__':
                               + str(tmp_num_dense) \
                               + str(tmp_keep_prob) + \
                               str(tmp_l2) + "_"
-                                
+                
                 # -- training
-                error_epoch_log, epoch_time = train_nn(tmp_num_dense,
-                                                       tmp_l2, 
-                                                       tmp_keep_prob, 
-                                                       log_epoch_file,
-                                                       pred_pickle,
-                                                       [], 
+                error_epoch_log, epoch_time = train_nn(num_dense = tmp_num_dense,
+                                                       l2_dense = tmp_l2, 
+                                                       dropout_keep_prob = tmp_keep_prob, 
+                                                       log_file = log_epoch_file,
+                                                       test_pickle = pred_pickle,
+                                                       epoch_set = [], 
                                                        bool_retrain = False)
                 
                 # error_epoch_log: [epoch, loss, train_rmse, val_rmse, val_mae, val_mape]
@@ -404,7 +405,6 @@ if __name__ == '__main__':
     with open(log_err_file, "a") as text_file:
         text_file.write( "\n")
         
-        
     
     # ------ re-training
     
@@ -414,9 +414,9 @@ if __name__ == '__main__':
     
     # based on RMSE
     best_hpara, epoch_sample, best_val_err = hyper_para_selection(hpara, 
-                                                                  hpara_err, 
-                                                                  para_val_epoch_num, 
-                                                                  para_test_epoch_num)
+                                                                  error_log = hpara_err, 
+                                                                  val_epoch_num = para_val_epoch_num, 
+                                                                  test_epoch_num = para_test_epoch_num)
     best_num_dense = best_hpara[0]
     best_keep_prob = best_hpara[1]
     best_l2 = best_hpara[2]
@@ -429,14 +429,15 @@ if __name__ == '__main__':
     
     with open(log_err_file, "a") as text_file:
         log_val(text_file, best_hpara, epoch_sample, best_val_err)
-        
+    
+    
     # start the re-training
-    error_epoch_log, epoch_time = train_nn(best_num_dense, 
-                                           best_l2, 
-                                           best_keep_prob, 
-                                           log_epoch_file, 
-                                           pred_pickle, 
-                                           epoch_sample,
+    error_epoch_log, epoch_time = train_nn(num_dense = best_num_dense, 
+                                           l2_dense = best_l2, 
+                                           dropout_keep_prob = best_keep_prob, 
+                                           log_file = log_epoch_file, 
+                                           test_pickle = pred_pickle, 
+                                           epoch_set = epoch_sample,
                                            bool_retrain = True) 
     
     
@@ -465,21 +466,26 @@ if __name__ == '__main__':
     # ------ testing
     
     
+    
     print('\n\n----- testing ------ \n')
     
-    rmse, mae, mape, nllk, py_mean, py_nllk, py_unc = test_nn([error_epoch_log[0][0]], 
+    rmse, mae, mape, nllk, py_mean, py_nllk, py_unc = test_nn(epoch_sample, 
                                                               xval, 
                                                               yval, 
                                                               path_model, 
                                                               method_str, 
                                                               dataset_str,
-                                                              best_keep_prob,
+                                                              dropout_keep_prob = best_keep_prob,
                                                               bool_mc = para_bool_mc_dropout, 
                                                               mc_n_samples = para_mc_n_samples, 
                                                               bool_instance_eval = False,
                                                               loss_type = para_loss_type)
     
     print('\n\n testing errors: ', rmse, mae, mape, nllk, '\n\n')
+    
+    with open(log_err_file, "a") as text_file:
+            log_test(text_file, [rmse, mae, mape, nllk])
+    
     
     
     if error_epoch_log[0][0] not in epoch_sample:
@@ -490,17 +496,15 @@ if __name__ == '__main__':
                                                                   path_model, 
                                                                   method_str, 
                                                                   dataset_str,
-                                                                  best_keep_prob,
+                                                                  dropout_keep_prob = best_keep_prob,
                                                                   bool_mc = para_bool_mc_dropout, 
                                                                   mc_n_samples = para_mc_n_samples, 
                                                                   bool_instance_eval = False,
                                                                   loss_type = para_loss_type)
             
-            
         print('\n\n testing errors: ', rmse, mae, mape, nllk, '\n\n')
-   
     
-    with open(log_err_file, "a") as text_file:
-        log_test(text_file, [rmse, mae, mape, nllk])
+        with open(log_err_file, "a") as text_file:
+            log_test(text_file, [rmse, mae, mape, nllk])
     
     

@@ -1,14 +1,16 @@
 
 
---------------- TO DO LIST -------------------
 
+--------------- TO DO LIST -------------------
 
 TRAINING:
   tf.set_random_seed(1)
 
-
 Validation:
   validation metric: rmse, mae, mape 
+
+Testing:
+  indiviudal: mean uncertainty llk
 
 
 MC-dropout
