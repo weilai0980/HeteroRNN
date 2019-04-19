@@ -1,16 +1,32 @@
+--------------- FINISHED -------------------
 
+validation metric: rmse, mae, mape
 
-
+indiviudal: mean uncertainty llk
+ 
+ 
 --------------- TO DO LIST -------------------
+
+TRAINING HYPER-PARA:
+
+  attention: bool
+  loss: homoscedasticity, mse, heteroscedastic, lk_inv
+  train mode: bayesian, map, EM 
+
 
 TRAINING:
   tf.set_random_seed(1)
-
+  
+  point-wise loss function
+  
+   
 Validation:
-  validation metric: rmse, mae, mape 
+  
+  nllk: for mse under dropout, use empirical mean and variance
+
 
 Testing:
-  indiviudal: mean uncertainty llk
+ 
 
 
 MC-dropout

@@ -270,6 +270,8 @@ def train_nn(num_dense,
             with open(log_file, "a") as text_file:
                 text_file.write("%s\n"%(str(epoch_error[-1])[1:-1]))
             
+            # ? better than best validation errors
+            
             # save the model w.r.t. the epoch in epoch_sample
             if bool_retrain == True and (val_rmse_epoch < best_val_rmse or epoch in epoch_set):
                 
@@ -388,7 +390,7 @@ if __name__ == '__main__':
                                                        epoch_set = [], 
                                                        bool_retrain = False)
                 
-                # error_epoch_log: [epoch, loss, train_rmse, val_rmse, val_mae, val_mape]
+                # error_epoch_log: [epoch, loss, train_rmse, val_rmse, val_mae, val_mape, val_nllk]
                 hpara.append([tmp_num_dense, tmp_keep_prob, tmp_l2])
                 hpara_err.append(error_epoch_log) 
                 
@@ -404,7 +406,6 @@ if __name__ == '__main__':
                     
     with open(log_err_file, "a") as text_file:
         text_file.write( "\n")
-        
     
     # ------ re-training
     
@@ -430,7 +431,6 @@ if __name__ == '__main__':
     with open(log_err_file, "a") as text_file:
         log_val(text_file, best_hpara, epoch_sample, best_val_err)
     
-    
     # start the re-training
     error_epoch_log, epoch_time = train_nn(num_dense = best_num_dense, 
                                            l2_dense = best_l2, 
@@ -439,7 +439,6 @@ if __name__ == '__main__':
                                            test_pickle = pred_pickle, 
                                            epoch_set = epoch_sample,
                                            bool_retrain = True) 
-    
     
     # ------ logging 
     
@@ -464,8 +463,6 @@ if __name__ == '__main__':
     
     
     # ------ testing
-    
-    
     
     print('\n\n----- testing ------ \n')
     

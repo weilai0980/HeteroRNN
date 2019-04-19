@@ -152,6 +152,7 @@ class bayesian_rnn():
         
         
         # ---- output layer
+        
         # remove the constraints of max_norm regularization 
         
         # dropout before the output layer
@@ -183,10 +184,11 @@ class bayesian_rnn():
         
         # ---- log likelihood 
         
-        # llk: log likelihood 
-        # nllk: negative log likelihood
-        # py: predicted y
-        # inv: inversed variance
+        # Dictionary
+        #   llk: log likelihood 
+        #   nllk: negative log likelihood
+        #   py: predicted y
+        #   inv: inversed variance
         
         # numerical stable
         
@@ -376,6 +378,7 @@ class bayesian_rnn():
                 # py_unc
                 if self.loss_type == 'mse':
                     
+                    # [n_sample, B, 1]
                     py_unc = np.std(np.transpose(np.asarray(samples_py_mean), [1, 0, 2]), axis = 1)
                 
                 elif 'lk' in self.loss_type:
